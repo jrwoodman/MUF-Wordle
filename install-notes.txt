@@ -1,0 +1,65 @@
+INSTALLATION NOTES FOR MUF WORDLE
+==================================
+
+Quick Installation Steps:
+1. Upload all .muf files to your MUCK
+2. Compile the main program:
+   @prog wordle.muf
+   @compile wordle
+3. Create the command action:
+   @action wordle;w;word=#<exit-number>
+   @link wordle=$wordle
+
+File Descriptions:
+------------------
+wordle.muf          - Main game implementation (compile this one)
+wordle-answers.muf  - Official Wordle answer words database
+wordle-guesses.muf  - Extended valid guess words (partial list included)
+
+Customization Required:
+-----------------------
+1. Update color codes in wordle.muf lines 28-34 for your MUCK
+2. Optionally expand the guess word list in wordle-guesses.muf
+3. Adjust Unicode emoji support if needed
+
+MUCK Compatibility:
+-------------------
+- Requires standard MUF array functions
+- Uses player properties for persistence
+- Needs basic string manipulation functions
+- Compatible with most MUCK variants (TinyMUCK, ProtoMUCK, etc.)
+
+Property Usage:
+---------------
+The program stores data in these player properties:
+_wordle/word                    - Today's target word
+_wordle/attempts               - Current attempt count
+_wordle/guesses                - Space-separated guess list
+_wordle/complete               - Game completion flag
+_wordle/lastplay               - Last play timestamp
+_wordle/stats/played           - Total games played
+_wordle/stats/won              - Total games won
+_wordle/stats/current_streak   - Current win streak
+_wordle/stats/max_streak       - Best win streak
+_wordle/stats/guess_distribution - Comma-separated win distribution
+
+Permissions Required:
+--------------------
+- Players must be able to set properties on themselves
+- Program needs access to system time (systime)
+- Standard MUF compilation privileges for installation
+
+Testing:
+--------
+After installation, test with:
+wordle help
+wordle
+wordle ABOUT (or any 5-letter word)
+wordle stats
+
+Troubleshooting:
+----------------
+- If colors don't work: Check color code definitions
+- If words aren't recognized: Verify all files compiled correctly
+- If stats don't save: Check property permissions
+- If daily word inconsistent: Verify system time accuracy

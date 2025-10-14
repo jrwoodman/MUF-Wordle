@@ -1,0 +1,40 @@
+# MUF Wordle .gitignore
+
+# Compiled MUF files (if your system generates them)
+*.muf~
+*.muf.bak
+*.compiled
+
+# Editor backup files
+*~
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Personal configuration files (if you add any)
+config.local.*
+settings.local.*
+
+# Test outputs
+test-output/
+debug/

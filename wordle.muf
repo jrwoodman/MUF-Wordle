@@ -1,0 +1,544 @@
+( Wordle Game in MUF )
+( A recreation of the popular Wordle game for MUCK environments )
+( Using official Wordle word lists for authentic gameplay )
+
+$version 1.0
+$author YourName  
+$note Wordle game - guess the daily 5-letter word in 6 tries
+
+$include wordle-answers
+$include wordle-guesses
+
+( Property names for game state )
+$def PROP_WORD "_wordle/word"
+$def PROP_ATTEMPTS "_wordle/attempts"
+$def PROP_GUESSES "_wordle/guesses"
+$def PROP_COMPLETE "_wordle/complete"
+$def PROP_LASTPLAY "_wordle/lastplay"
+$def PROP_STATS_PLAYED "_wordle/stats/played"
+$def PROP_STATS_WON "_wordle/stats/won"
+$def PROP_STATS_CURRENT_STREAK "_wordle/stats/current_streak"
+$def PROP_STATS_MAX_STREAK "_wordle/stats/max_streak"
+$def PROP_STATS_GUESS_DIST "_wordle/stats/guess_distribution"
+
+( Game constants )
+$def WORD_LENGTH 5
+$def MAX_ATTEMPTS 6
+
+( Color codes for output - adjust these for your MUCK's color system )
+$def GREEN "^G"
+$def YELLOW "^Y"  
+$def GRAY "^K"
+$def RESET "^N"
+$def BOLD "^B"
+$def UNDERLINE "^U"
+
+( Emoji alternatives if your MUCK supports Unicode )
+$def GREEN_SQUARE "🟩"
+$def YELLOW_SQUARE "🟨"
+$def GRAY_SQUARE "⬜"
+
+( Check if a word is valid (in either answer list or guess list) )
+: valid-word? ( str -- bool )
+    dup
+    
+    ( Check if it's in the answer words )
+    get-answer-words " " explode_array
+    over array_findval -1 = not if
+        pop pop 1 exit
+    then
+    
+    ( Check if it's in the allowed guess words )
+    get-guess-words " " explode_array  
+    swap array_findval -1 = not
+;
+
+( Get today's word using a deterministic seed based on date )
+: get-todays-word ( -- str )
+    ( Use system time to generate consistent daily word )
+    systime 86400 / ( Get days since epoch )
+    get-answer-words " " explode_array
+    dup array_count
+    3 pick swap % ( Use modulo to get consistent index )
+    array_getitem
+    swap pop
+;
+
+( Initialize a new game for player )
+: init-game ( player -- )
+    ( Clear existing properties )
+    dup PROP_WORD remove_prop
+    dup PROP_ATTEMPTS remove_prop
+    dup PROP_GUESSES remove_prop
+    dup PROP_COMPLETE remove_prop
+    
+    ( Set today's word )
+    get-todays-word
+    over PROP_WORD setpropstr
+    
+    ( Initialize attempts )
+    0 over PROP_ATTEMPTS setprop
+    
+    ( Mark game as active )
+    0 over PROP_COMPLETE setprop
+    
+    ( Set last play time to today )
+    systime over PROP_LASTPLAY setprop
+    
+    pop
+;
+
+( Check if player has played today )
+: played-today? ( player -- bool )
+    dup PROP_LASTPLAY getprop
+    dup not if
+        pop pop 0 exit
+    then
+    
+    ( Check if last play was today )
+    systime 86400 / swap 86400 / =
+;
+
+( Update player statistics )
+: update-stats ( player won? attempts -- )
+    ( Increment games played )
+    over PROP_STATS_PLAYED getprop 1 + 2 pick PROP_STATS_PLAYED setprop
+    
+    swap if
+        ( Player won )
+        dup PROP_STATS_WON getprop 1 + over PROP_STATS_WON setprop
+        
+        ( Update current streak )
+        dup PROP_STATS_CURRENT_STREAK getprop 1 + 
+        dup 2 pick PROP_STATS_CURRENT_STREAK setprop
+        
+        ( Update max streak if needed )
+        over PROP_STATS_MAX_STREAK getprop
+        over < if
+            over PROP_STATS_MAX_STREAK setprop
+        else
+            pop
+        then
+        
+        ( Update guess distribution )
+        over PROP_STATS_GUESS_DIST getpropstr
+        dup not if
+            pop "0,0,0,0,0,0"
+        then
+        "," explode_array
+        
+        ( Increment the appropriate attempt bucket )
+        over 1 - array_getitem atoi 1 +
+        intostr over 2 pick 1 - array_setitem
+        
+        "," array_join
+        2 pick PROP_STATS_GUESS_DIST setpropstr
+        
+    else
+        ( Player lost - reset current streak )
+        0 over PROP_STATS_CURRENT_STREAK setprop
+    then
+    
+    pop pop
+;
+
+( Get current game state )
+: get-game-state ( player -- word attempts guesses complete )
+    dup PROP_WORD getpropstr
+    over PROP_ATTEMPTS getprop
+    over PROP_GUESSES getpropstr
+    swap PROP_COMPLETE getprop
+;
+
+( Check guess against target and generate colored feedback )
+: check-guess ( target guess -- feedback )
+    "" swap
+    0 ( position counter )
+    
+    begin
+        dup WORD_LENGTH < while
+        
+        ( Get character at current position from guess )
+        over over 1 strcut swap pop 1 strcut swap pop
+        
+        ( Get character at current position from target )
+        4 pick over 1 strcut swap pop 1 strcut swap pop
+        
+        ( Compare characters )
+        over over strcmp not if
+            ( Exact match - green )
+            GREEN swap strcat RESET strcat strcat
+        else
+            ( Check if letter exists elsewhere in target )
+            4 pick over instr if
+                ( Letter exists but wrong position - yellow )
+                YELLOW swap strcat RESET strcat strcat
+            else
+                ( Letter not in word - gray )
+                GRAY swap strcat RESET strcat strcat
+            then
+        then
+        
+        swap pop ( remove character )
+        1 + ( increment position )
+    repeat
+    
+    ( Clean up stack )
+    pop pop pop
+;
+
+( Generate emoji feedback for sharing )
+: check-guess-emoji ( target guess -- emoji-str )
+    "" swap
+    0 ( position counter )
+    
+    begin
+        dup WORD_LENGTH < while
+        
+        ( Get character at current position from guess )
+        over over 1 strcut swap pop 1 strcut swap pop
+        
+        ( Get character at current position from target )
+        4 pick over 1 strcut swap pop 1 strcut swap pop
+        
+        ( Compare characters )
+        over over strcmp not if
+            ( Exact match )
+            GREEN_SQUARE strcat
+        else
+            ( Check if letter exists elsewhere in target )
+            4 pick over instr if
+                ( Letter exists but wrong position )
+                YELLOW_SQUARE strcat
+            else
+                ( Letter not in word )
+                GRAY_SQUARE strcat
+            then
+        then
+        
+        swap pop ( remove character )
+        1 + ( increment position )
+    repeat
+    
+    ( Clean up stack )
+    pop pop pop
+;
+
+( Display game board )
+: show-board ( player -- )
+    get-game-state
+    
+    ( Clear screen effect )
+    "" tell
+    "═══════════════════════════════════════" tell
+    BOLD "                WORDLE" strcat RESET strcat tell
+    "═══════════════════════════════════════" tell
+    "" tell
+    
+    ( Show previous guesses if any )
+    dup if
+        " " explode_array
+        0 begin
+            dup 5 pick array_count < while
+            dup 5 pick array_getitem
+            
+            ( Show the guess with color coding )
+            6 pick over check-guess
+            "  " swap strcat tell
+            
+            1 +
+        repeat
+        pop
+    then
+    
+    ( Show empty rows for remaining attempts )
+    dup array_count MAX_ATTEMPTS < if
+        dup array_count MAX_ATTEMPTS swap - 0 do
+            "  ⬜⬜⬜⬜⬜" tell
+        loop
+    then
+    
+    "" tell
+    "Attempts: " 3 pick intostr strcat "/" strcat MAX_ATTEMPTS intostr strcat tell
+    
+    ( Check if game is complete )
+    dup if
+        "" tell
+        3 pick 4 pick strcmp not if
+            BOLD GREEN "🎉 Congratulations! You found it!" strcat RESET strcat tell
+        else
+            "😞 Better luck tomorrow! The word was: " BOLD strcat 4 pick strcat RESET strcat tell
+        then
+    then
+    
+    "" tell
+    "═══════════════════════════════════════" tell
+    
+    ( Clean up stack )
+    pop pop pop pop
+;
+
+( Make a guess )
+: make-guess ( player guess -- )
+    ( Validate guess length )
+    dup strlen WORD_LENGTH = not if
+        pop "❌ Guess must be exactly " WORD_LENGTH intostr strcat " letters long." strcat tell
+        exit
+    then
+    
+    ( Convert to uppercase )
+    toupper
+    
+    ( Validate word )
+    dup valid-word? not if
+        pop "❌ \"" over strcat "\" is not a valid word." strcat tell
+        exit
+    then
+    
+    ( Get current game state )
+    over get-game-state
+    
+    ( Check if game is already complete )
+    dup if
+        pop pop pop pop pop
+        "ℹ️  You've already completed today's Wordle!" tell
+        over show-board
+        exit
+    then
+    
+    ( Check if max attempts reached )
+    over MAX_ATTEMPTS >= if
+        pop pop pop pop pop
+        "❌ You've used all your attempts!" tell
+        over show-board
+        exit
+    then
+    
+    ( target-word attempts guesses complete guess )
+    
+    ( Add guess to guesses list )
+    over if
+        over " " strcat 4 pick strcat
+    else
+        4 pick
+    then
+    
+    ( Update guesses property )
+    4 pick PROP_GUESSES setpropstr
+    
+    ( Increment attempts )
+    over 1 + 4 pick PROP_ATTEMPTS setprop
+    
+    ( Check if guess is correct )
+    4 pick 3 pick strcmp not if
+        ( Correct guess! )
+        1 4 pick PROP_COMPLETE setprop
+        4 pick show-board
+        
+        ( Update statistics )
+        4 pick 1 3 pick 1 + update-stats
+        
+        "" tell
+        "🎊 Share your result:" tell
+        4 pick generate-share-text tell
+        
+    else
+        ( Incorrect guess )
+        ( Check if max attempts reached )
+        over 1 + MAX_ATTEMPTS >= if
+            ( Game over )
+            1 4 pick PROP_COMPLETE setprop
+            4 pick show-board
+            
+            ( Update statistics )  
+            4 pick 0 MAX_ATTEMPTS update-stats
+            
+            "" tell
+            "📊 Share your result:" tell
+            4 pick generate-share-text tell
+        else
+            ( Show updated board )
+            4 pick show-board
+        then
+    then
+    
+    ( Clean up stack )
+    pop pop pop pop pop
+;
+
+( Generate shareable result text )
+: generate-share-text ( player -- )
+    get-game-state pop ( remove complete flag )
+    
+    ( guesses attempts target )
+    
+    "Wordle " systime 86400 / intostr strcat
+    
+    ( Add result )
+    over over strcmp not if
+        " " strcat over intostr strcat "/6" strcat
+    else
+        " X/6" strcat
+    then
+    
+    tell "" tell
+    
+    ( Show emoji grid )
+    dup if
+        " " explode_array
+        0 begin
+            dup 4 pick array_count < while
+            dup 4 pick array_getitem
+            4 pick over check-guess-emoji
+            tell
+            1 +
+        repeat
+        pop
+    then
+    
+    ( Clean up )
+    pop pop pop
+;
+
+( Show player statistics )
+: show-stats ( player -- )
+    "" tell
+    "📊 YOUR STATISTICS" tell
+    "═══════════════════" tell
+    
+    dup PROP_STATS_PLAYED getprop intostr 
+    "Games Played: " swap strcat tell
+    
+    dup PROP_STATS_WON getprop over PROP_STATS_PLAYED getprop
+    dup 0 = if
+        pop pop "Win Rate: 0%"
+    else
+        swap 100 * swap / intostr "Win Rate: " swap strcat "%" strcat
+    then
+    tell
+    
+    dup PROP_STATS_CURRENT_STREAK getprop intostr
+    "Current Streak: " swap strcat tell
+    
+    dup PROP_STATS_MAX_STREAK getprop intostr
+    "Max Streak: " swap strcat tell
+    
+    "" tell "GUESS DISTRIBUTION" tell
+    "─────────────────" tell
+    
+    dup PROP_STATS_GUESS_DIST getpropstr
+    dup not if
+        pop "0,0,0,0,0,0"
+    then
+    "," explode_array
+    
+    1 begin
+        dup 6 <= while
+        over 2 pick 1 - array_getitem
+        over intostr ":" strcat " " strcat 
+        over 0 > if
+            over atoi 0 do "█" strcat loop
+        then
+        " (" strcat 3 pick strcat ")" strcat
+        tell
+        1 +
+    repeat
+    pop pop
+    
+    "" tell
+    pop
+;
+
+( Main command handler )
+: do-wordle ( str -- )
+    strip
+    
+    dup not if
+        pop
+        me@ played-today? if
+            me@ show-board
+        else
+            "🎯 Welcome to Wordle!" tell
+            "" tell
+            "Guess the 5-letter word in 6 attempts!" tell
+            "🟩 Green: Correct letter, correct position" tell  
+            "🟨 Yellow: Correct letter, wrong position" tell
+            "⬜ Gray: Letter not in word" tell
+            "" tell
+            "Type 'wordle <word>' to make a guess" tell
+            "Type 'wordle help' for more commands" tell
+            "" tell
+            me@ init-game
+            me@ show-board
+        then
+        exit
+    then
+    
+    " " split swap
+    
+    ( Check command )
+    dup "help" strcmp not if
+        pop pop
+        "🎯 WORDLE HELP" tell
+        "═══════════════" tell
+        "" tell
+        "Commands:" tell
+        "  wordle          - Start new game or show current" tell
+        "  wordle <word>   - Make a guess" tell
+        "  wordle status   - Show current game" tell
+        "  wordle stats    - Show your statistics" tell
+        "  wordle help     - Show this help" tell
+        "" tell
+        "Rules:" tell
+        "• Guess the 5-letter word in 6 attempts" tell
+        "• Each guess must be a valid 5-letter word" tell  
+        "• Color coding shows how close your guess was" tell
+        "• A new word is available each day" tell
+        exit
+    then
+    
+    dup "status" strcmp not if
+        pop pop
+        me@ show-board
+        exit
+    then
+    
+    dup "stats" strcmp not if
+        pop pop  
+        me@ show-stats
+        exit
+    then
+    
+    dup "share" strcmp not if
+        pop pop
+        me@ played-today? if
+            me@ generate-share-text
+        else
+            "❌ You haven't played today's Wordle yet!" tell
+        then
+        exit
+    then
+    
+    ( Check if it's a word guess )
+    dup strlen WORD_LENGTH = if
+        pop
+        
+        ( Check if player has already played today )
+        me@ played-today? not if
+            me@ init-game
+        then
+        
+        me@ swap make-guess
+    else
+        pop pop
+        "❌ Invalid command. Type 'wordle help' for instructions." tell
+    then
+;
+
+( Public command entry point )
+: cmd-wordle
+    command @ "Wordle" setname
+    command @ "Guess the daily 5-letter word!" setdesc
+    
+    do-wordle
+;
