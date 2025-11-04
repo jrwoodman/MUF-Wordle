@@ -9,34 +9,25 @@ $note Wordle game - guess the daily 5-letter word in 6 tries
 $include wordle-answers
 $include wordle-guesses
 
-( Property names for game state )
-$def PROP_WORD "_wordle/word"
-$def PROP_ATTEMPTS "_wordle/attempts"
-$def PROP_GUESSES "_wordle/guesses"
-$def PROP_COMPLETE "_wordle/complete"
-$def PROP_LASTPLAY "_wordle/lastplay"
-$def PROP_STATS_PLAYED "_wordle/stats/played"
-$def PROP_STATS_WON "_wordle/stats/won"
-$def PROP_STATS_CURRENT_STREAK "_wordle/stats/current_streak"
-$def PROP_STATS_MAX_STREAK "_wordle/stats/max_streak"
-$def PROP_STATS_GUESS_DIST "_wordle/stats/guess_distribution"
+( Property names for game state - defined as literals )
+( No $def support, using direct string/number replacements )
 
 ( Game constants )
-$def WORD_LENGTH 5
-$def MAX_ATTEMPTS 6
+( WORD_LENGTH = 5 )
+( MAX_ATTEMPTS = 6 )
 
 ( Color codes for output - adjust these for your MUCK's color system )
-$def GREEN "^G"
-$def YELLOW "^Y"  
-$def GRAY "^K"
-$def RESET "^N"
-$def BOLD "^B"
-$def UNDERLINE "^U"
+( GREEN = "^G" )
+( YELLOW = "^Y" )
+( GRAY = "^K" )
+( RESET = "^N" )
+( BOLD = "^B" )
+( UNDERLINE = "^U" )
 
 ( Emoji alternatives if your MUCK supports Unicode )
-$def GREEN_SQUARE "🟩"
-$def YELLOW_SQUARE "🟨"
-$def GRAY_SQUARE "⬜"
+( GREEN_SQUARE = "🟩" )
+( YELLOW_SQUARE = "🟨" )
+( GRAY_SQUARE = "⬜" )
 
 ( Check if a word is valid (in either answer list or guess list) )
 : valid-word? ( str -- bool )
@@ -67,30 +58,30 @@ $def GRAY_SQUARE "⬜"
 ( Initialize a new game for player )
 : init-game ( player -- )
     ( Clear existing properties )
-    dup PROP_WORD remove_prop
-    dup PROP_ATTEMPTS remove_prop
-    dup PROP_GUESSES remove_prop
-    dup PROP_COMPLETE remove_prop
+    dup "_wordle/word" remove_prop
+    dup "_wordle/attempts" remove_prop
+    dup "_wordle/guesses" remove_prop
+    dup "_wordle/complete" remove_prop
     
     ( Set today's word )
     get-todays-word
-    over PROP_WORD setpropstr
+    over "_wordle/word" setpropstr
     
     ( Initialize attempts )
-    0 over PROP_ATTEMPTS setprop
+    0 over "_wordle/attempts" setprop
     
     ( Mark game as active )
-    0 over PROP_COMPLETE setprop
+    0 over "_wordle/complete" setprop
     
     ( Set last play time to today )
-    systime over PROP_LASTPLAY setprop
+    systime over "_wordle/lastplay" setprop
     
     pop
 ;
 
 ( Check if player has played today )
 : played-today? ( player -- bool )
-    dup PROP_LASTPLAY getprop
+    dup "_wordle/lastplay" getprop
     dup not if
         pop pop 0 exit
     then
@@ -102,26 +93,26 @@ $def GRAY_SQUARE "⬜"
 ( Update player statistics )
 : update-stats ( player won? attempts -- )
     ( Increment games played )
-    over PROP_STATS_PLAYED getprop 1 + 2 pick PROP_STATS_PLAYED setprop
+    over "_wordle/stats/played" getprop 1 + 2 pick "_wordle/stats/played" setprop
     
     swap if
         ( Player won )
-        dup PROP_STATS_WON getprop 1 + over PROP_STATS_WON setprop
+        dup "_wordle/stats/won" getprop 1 + over "_wordle/stats/won" setprop
         
         ( Update current streak )
-        dup PROP_STATS_CURRENT_STREAK getprop 1 + 
-        dup 2 pick PROP_STATS_CURRENT_STREAK setprop
+        dup "_wordle/stats/current_streak" getprop 1 + 
+        dup 2 pick "_wordle/stats/current_streak" setprop
         
         ( Update max streak if needed )
-        over PROP_STATS_MAX_STREAK getprop
+        over "_wordle/stats/max_streak" getprop
         over < if
-            over PROP_STATS_MAX_STREAK setprop
+            over "_wordle/stats/max_streak" setprop
         else
             pop
         then
         
         ( Update guess distribution )
-        over PROP_STATS_GUESS_DIST getpropstr
+        over "_wordle/stats/guess_distribution" getpropstr
         dup not if
             pop "0,0,0,0,0,0"
         then
@@ -132,11 +123,11 @@ $def GRAY_SQUARE "⬜"
         intostr over 2 pick 1 - array_setitem
         
         "," array_join
-        2 pick PROP_STATS_GUESS_DIST setpropstr
+        2 pick "_wordle/stats/guess_distribution" setpropstr
         
     else
         ( Player lost - reset current streak )
-        0 over PROP_STATS_CURRENT_STREAK setprop
+        0 over "_wordle/stats/current_streak" setprop
     then
     
     pop pop
@@ -144,10 +135,10 @@ $def GRAY_SQUARE "⬜"
 
 ( Get current game state )
 : get-game-state ( player -- word attempts guesses complete )
-    dup PROP_WORD getpropstr
-    over PROP_ATTEMPTS getprop
-    over PROP_GUESSES getpropstr
-    swap PROP_COMPLETE getprop
+    dup "_wordle/word" getpropstr
+    over "_wordle/attempts" getprop
+    over "_wordle/guesses" getpropstr
+    swap "_wordle/complete" getprop
 ;
 
 ( Check guess against target and generate colored feedback )
@@ -156,7 +147,7 @@ $def GRAY_SQUARE "⬜"
     0 ( position counter )
     
     begin
-        dup WORD_LENGTH < while
+        dup 5 < while
         
         ( Get character at current position from guess )
         over over 1 strcut swap pop 1 strcut swap pop
@@ -167,15 +158,15 @@ $def GRAY_SQUARE "⬜"
         ( Compare characters )
         over over strcmp not if
             ( Exact match - green )
-            GREEN swap strcat RESET strcat strcat
+            "^G" swap strcat "^N" strcat strcat
         else
             ( Check if letter exists elsewhere in target )
             4 pick over instr if
                 ( Letter exists but wrong position - yellow )
-                YELLOW swap strcat RESET strcat strcat
+                "^Y" swap strcat "^N" strcat strcat
             else
                 ( Letter not in word - gray )
-                GRAY swap strcat RESET strcat strcat
+                "^K" swap strcat "^N" strcat strcat
             then
         then
         
@@ -193,7 +184,7 @@ $def GRAY_SQUARE "⬜"
     0 ( position counter )
     
     begin
-        dup WORD_LENGTH < while
+        dup 5 < while
         
         ( Get character at current position from guess )
         over over 1 strcut swap pop 1 strcut swap pop
@@ -204,15 +195,15 @@ $def GRAY_SQUARE "⬜"
         ( Compare characters )
         over over strcmp not if
             ( Exact match )
-            GREEN_SQUARE strcat
+            "🟩" strcat
         else
             ( Check if letter exists elsewhere in target )
             4 pick over instr if
                 ( Letter exists but wrong position )
-                YELLOW_SQUARE strcat
+                "🟨" strcat
             else
                 ( Letter not in word )
-                GRAY_SQUARE strcat
+                "⬜" strcat
             then
         then
         
@@ -231,7 +222,7 @@ $def GRAY_SQUARE "⬜"
     ( Clear screen effect )
     "" tell
     "═══════════════════════════════════════" tell
-    BOLD "                WORDLE" strcat RESET strcat tell
+    "^B                WORDLE^N" tell
     "═══════════════════════════════════════" tell
     "" tell
     
@@ -252,22 +243,22 @@ $def GRAY_SQUARE "⬜"
     then
     
     ( Show empty rows for remaining attempts )
-    dup array_count MAX_ATTEMPTS < if
-        dup array_count MAX_ATTEMPTS swap - 0 do
+    dup array_count 6 < if
+        dup array_count 6 swap - 0 do
             "  ⬜⬜⬜⬜⬜" tell
         loop
     then
     
     "" tell
-    "Attempts: " 3 pick intostr strcat "/" strcat MAX_ATTEMPTS intostr strcat tell
+    "Attempts: " 3 pick intostr strcat "/6" strcat tell
     
     ( Check if game is complete )
     dup if
         "" tell
         3 pick 4 pick strcmp not if
-            BOLD GREEN "🎉 Congratulations! You found it!" strcat RESET strcat tell
+            "^B^G🎉 Congratulations! You found it!^N" tell
         else
-            "😞 Better luck tomorrow! The word was: " BOLD strcat 4 pick strcat RESET strcat tell
+            "😞 Better luck tomorrow! The word was: ^B" 4 pick strcat "^N" strcat tell
         then
     then
     
@@ -281,8 +272,8 @@ $def GRAY_SQUARE "⬜"
 ( Make a guess )
 : make-guess ( player guess -- )
     ( Validate guess length )
-    dup strlen WORD_LENGTH = not if
-        pop "❌ Guess must be exactly " WORD_LENGTH intostr strcat " letters long." strcat tell
+    dup strlen 5 = not if
+        pop "❌ Guess must be exactly 5 letters long." tell
         exit
     then
     
@@ -307,7 +298,7 @@ $def GRAY_SQUARE "⬜"
     then
     
     ( Check if max attempts reached )
-    over MAX_ATTEMPTS >= if
+    over 6 >= if
         pop pop pop pop pop
         "❌ You've used all your attempts!" tell
         over show-board
@@ -324,15 +315,15 @@ $def GRAY_SQUARE "⬜"
     then
     
     ( Update guesses property )
-    4 pick PROP_GUESSES setpropstr
+    4 pick "_wordle/guesses" setpropstr
     
     ( Increment attempts )
-    over 1 + 4 pick PROP_ATTEMPTS setprop
+    over 1 + 4 pick "_wordle/attempts" setprop
     
     ( Check if guess is correct )
     4 pick 3 pick strcmp not if
         ( Correct guess! )
-        1 4 pick PROP_COMPLETE setprop
+        1 4 pick "_wordle/complete" setprop
         4 pick show-board
         
         ( Update statistics )
@@ -345,13 +336,13 @@ $def GRAY_SQUARE "⬜"
     else
         ( Incorrect guess )
         ( Check if max attempts reached )
-        over 1 + MAX_ATTEMPTS >= if
+        over 1 + 6 >= if
             ( Game over )
-            1 4 pick PROP_COMPLETE setprop
+            1 4 pick "_wordle/complete" setprop
             4 pick show-board
             
             ( Update statistics )  
-            4 pick 0 MAX_ATTEMPTS update-stats
+            4 pick 0 6 update-stats
             
             "" tell
             "📊 Share your result:" tell
@@ -406,10 +397,10 @@ $def GRAY_SQUARE "⬜"
     "📊 YOUR STATISTICS" tell
     "═══════════════════" tell
     
-    dup PROP_STATS_PLAYED getprop intostr 
+    dup "_wordle/stats/played" getprop intostr 
     "Games Played: " swap strcat tell
     
-    dup PROP_STATS_WON getprop over PROP_STATS_PLAYED getprop
+    dup "_wordle/stats/won" getprop over "_wordle/stats/played" getprop
     dup 0 = if
         pop pop "Win Rate: 0%"
     else
@@ -417,16 +408,16 @@ $def GRAY_SQUARE "⬜"
     then
     tell
     
-    dup PROP_STATS_CURRENT_STREAK getprop intostr
+    dup "_wordle/stats/current_streak" getprop intostr
     "Current Streak: " swap strcat tell
     
-    dup PROP_STATS_MAX_STREAK getprop intostr
+    dup "_wordle/stats/max_streak" getprop intostr
     "Max Streak: " swap strcat tell
     
     "" tell "GUESS DISTRIBUTION" tell
     "─────────────────" tell
     
-    dup PROP_STATS_GUESS_DIST getpropstr
+    dup "_wordle/stats/guess_distribution" getpropstr
     dup not if
         pop "0,0,0,0,0,0"
     then
@@ -520,7 +511,7 @@ $def GRAY_SQUARE "⬜"
     then
     
     ( Check if it's a word guess )
-    dup strlen WORD_LENGTH = if
+    dup strlen 5 = if
         pop
         
         ( Check if player has already played today )
