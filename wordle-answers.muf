@@ -1,9 +1,7 @@
 ( Official Wordle Answer Words Database )
 ( These are the 2,315 words that can be the daily answer in Wordle )
-
-$version 1.0
-$author YourName
-$note Official Wordle answer words - words that can be the solution
+( Version 1.0 )
+( Official Wordle answer words - words that can be the solution )
 
 ( Get the official Wordle answer word list )
 : get-answer-words ( -- str )

@@ -1,9 +1,7 @@
 ( Official Wordle Allowed Guess Words Database )
 ( These are the words allowed as guesses in Wordle, beyond the answer list )
-
-$version 1.0
-$author YourName
-$note Extended Wordle guess list - permitted guesses that are not answers
+( Version 1.0 )
+( Extended Wordle guess list - permitted guesses that are not answers )
 
 ( NOTE: This file contains a large list. For brevity in this example, include a subset and a
   placeholder to expand. In a real deployment, replace with the full allowed-guess list.)
