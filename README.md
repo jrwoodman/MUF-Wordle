@@ -15,22 +15,53 @@ A complete implementation of the popular Wordle game for MUCK environments, writ
 
 ## Installation
 
-### 1. Upload the MUF Files
+### Step 1: Create Database Object
 
-Upload these three files to your MUCK:
+First, create an object to hold the word lists:
 
-- `wordle-answers.muf` - Official Wordle answer words database
-- `wordle-guesses.muf` - Extended valid guess words (subset included)
-- `wordle.muf` - Main game implementation
+```
+@create Wordle-DB
+```
 
-### 2. Compile the Program
+Note the dbref (e.g., `#1234`) that is returned.
+
+### Step 2: Initialize Database
+
+Compile and run the database initialization program:
+
+```
+@prog wordle-db-init.muf
+@compile wordle-db-init
+```
+
+Run it with your database object dbref:
+
+```
+wordle-db-init #1234
+```
+
+This will store all the word lists as properties on the database object.
+
+### Step 3: Configure Main Program
+
+Edit `wordle.muf` and change line 12 to use your database object dbref:
+
+```forth
+: get-word-db ( -- dbref )
+    #1234  ( CHANGE THIS to your database object dbref )
+;
+```
+
+### Step 4: Compile Main Program
 
 ```
 @prog wordle.muf
 @compile wordle
 ```
 
-### 3. Create the Command
+### Step 5: Create Command
+
+Create an action to run the game:
 
 ```
 @action wordle;w;word=#<your-exit-number>
@@ -103,23 +134,20 @@ Attempts: 1/6
 ## Configuration
 
 ### Color Codes
-Modify the color definitions in `wordle.muf` lines 28-34 to match your MUCK's color system:
+The game uses ANSI escape sequences for colors (lines 44-48 in `wordle.muf`):
 
 ```forth
-$def GREEN "^G"     ( Change to your green color code )
-$def YELLOW "^Y"    ( Change to your yellow color code )
-$def GRAY "^K"      ( Change to your gray color code )
-$def RESET "^N"     ( Change to your reset color code )
+( GREEN = "\[[32m" )
+( YELLOW = "\[[33m" )
+( GRAY = "\[[90m" )
+( RESET = "\[[0m" )
+( BOLD = "\[[1m" )
 ```
+
+If your MUCK uses different color codes, modify the color strings in lines 184, 189, and 192.
 
 ### Unicode Support
-If your MUCK supports Unicode, the emoji squares should display properly. If not, you can modify lines 37-39 to use ASCII alternatives:
-
-```forth
-$def GREEN_SQUARE "[G]"
-$def YELLOW_SQUARE "[Y]"
-$def GRAY_SQUARE "[_]"
-```
+The game uses Unicode emoji squares (🟩🟨⬜) for visual feedback. If your MUCK doesn't support Unicode, you can replace these in lines 221, 226, and 229 with ASCII alternatives like `[G]`, `[Y]`, and `[_]`.
 
 ## Statistics Tracking
 
@@ -155,9 +183,13 @@ Game state and statistics are stored using these property prefixes:
 
 ## Extending the Word Lists
 
-The `wordle-guesses.muf` file currently contains a subset of the full allowed guess list for brevity. To get the complete experience, you should replace the word list with the full official Wordle allowed-guess dictionary (approximately 10,000+ words).
+Currently, only the 2,315 official answer words are validated for guesses. To add the extended guess list (approximately 10,000+ words):
 
-You can find the complete word lists from various Wordle solver repositories online.
+1. Expand `wordle-db-init.muf` to include additional word chunks
+2. Update the `get-guess-words` function in `wordle.muf` to read from additional properties
+3. Re-run the database initialization
+
+You can find the complete Wordle word lists from various Wordle solver repositories online.
 
 ## Troubleshooting
 
