@@ -1,8 +1,6 @@
-( Wordle Game in MUF )
+( Wordle Game in MUF - Simplified for basic MUF )
 ( A recreation of the popular Wordle game for MUCK environments )
-( Using official Wordle word lists for authentic gameplay )
-( Version 1.0 )
-( Wordle game - guess the daily 5-letter word in 6 tries )
+( Version 1.0 - Compatible with circa 2001 MUCK servers )
 
 ( Word database configuration )
 ( Set this to the dbref of your word database object )
@@ -28,58 +26,65 @@
     swap "_words/answers/9" getpropstr strcat
 ;
 
-( Get extended guess word list - not implemented yet )
-: get-guess-words ( -- str )
-    ""
-;
-
-( Property names for game state - defined as literals )
-( No $def support, using direct string/number replacements )
-
-( Game constants )
-( WORD_LENGTH = 5 )
-( MAX_ATTEMPTS = 6 )
-
-( ANSI color codes for output )
-( GREEN = "\[[32m" )
-( YELLOW = "\[[33m" )
-( GRAY = "\[[90m" - bright black )
-( RESET = "\[[0m" )
-( BOLD = "\[[1m" )
-
-( Emoji alternatives if your MUCK supports Unicode )
-( GREEN_SQUARE = "🟩" )
-( YELLOW_SQUARE = "🟨" )
-( GRAY_SQUARE = "⬜" )
-
-( Check if a word is valid in either answer list or guess list )
+( Check if a word is valid - uses simple string search )
 : valid-word? ( str -- bool )
-    ( Check if word exists in answer list )
-    " " swap strcat " " strcat  ( add spaces around word )
-    get-answer-words " " swap strcat " " strcat  ( add spaces to list too )
-    instr 0 > if
-        1 exit
-    then
+    ( Add spaces around word for exact matching )
+    " " swap strcat " " strcat
     
-    ( Check if it's in the allowed guess words )
-    get-guess-words " " swap strcat " " strcat
+    ( Add spaces around answer list and search )
+    get-answer-words " " swap strcat " " strcat
     instr 0 >
 ;
 
-( Get today's word using a deterministic seed based on date )
+( Get the Nth word from a space-separated string )
+: get-word-at-index ( str index -- word )
+    swap " " explode  ( index str1 str2 ... strN N )
+    
+    ( Now we have: index str1 str2 ... strN N )
+    ( We need to pick the word at 'index' position )
+    swap 1 +  ( str1 str2 ... strN N index+1 )
+    pick  ( str1 str2 ... strN N word )
+    
+    ( Clean up the stack - pop all the words and count )
+    swap  ( str1 str2 ... strN word N )
+    0 begin
+        over over >
+    while
+        rot pop
+        1 +
+    repeat
+    pop pop
+;
+
+( Get today's word using deterministic seed )
 : get-todays-word ( -- str )
     ( Use system time to generate consistent daily word )
     systime 86400 /  ( days since epoch )
-    get-answer-words " " explode  ( str1 str2 ... strN N )
-    dup 3 pick swap %  ( days N index )
-    1 + swap  ( N index+1 )
     
-    ( Roll the desired word to top of stack )
+    ( Count words in answer list )
+    get-answer-words " " explode  ( days str1 str2 ... strN N )
+    
+    ( Calculate index: days % N )
+    over swap %  ( days str1 str2 ... strN index )
+    
+    ( Get the word at that index - it's already on stack )
+    ( Stack is: days str1 str2 ... strN index )
+    ( We want: str[index] )
+    1 + pick  ( days str1 str2 ... strN word )
+    
+    ( Clean up - we need to pop everything except the word )
+    swap  ( days str1 ... word days )
+    pop   ( str1 str2 ... strN word )
+    
+    ( Count how many items to pop )
+    get-answer-words " " explode  ( str1 ... word str1' ... N )
     0 begin
-        over over < while
-        rot 1 +
+        over over >
+    while
+        rot pop
+        1 +
     repeat
-    pop pop
+    pop
 ;
 
 ( Initialize a new game for player )
@@ -92,16 +97,16 @@
     
     ( Set today's word )
     get-todays-word
-    over "_wordle/word" setpropstr
+    over "_wordle/word" addprop
     
     ( Initialize attempts )
-    0 over "_wordle/attempts" setprop
+    0 over "_wordle/attempts" addprop
     
     ( Mark game as active )
-    0 over "_wordle/complete" setprop
+    0 over "_wordle/complete" addprop
     
     ( Set last play time to today )
-    systime over "_wordle/lastplay" setprop
+    systime over "_wordle/lastplay" addprop
     
     pop
 ;
@@ -117,47 +122,38 @@
     systime 86400 / swap 86400 / =
 ;
 
-( Update player statistics )
+( Update player statistics - simplified version )
 : update-stats ( player won? attempts -- )
     ( Increment games played )
-    over "_wordle/stats/played" getprop 1 + 2 pick "_wordle/stats/played" setprop
+    over "_wordle/stats/played" getprop 1 + 2 pick "_wordle/stats/played" addprop
     
     swap if
         ( Player won )
-        dup "_wordle/stats/won" getprop 1 + over "_wordle/stats/won" setprop
+        dup "_wordle/stats/won" getprop 1 + over "_wordle/stats/won" addprop
         
         ( Update current streak )
         dup "_wordle/stats/current_streak" getprop 1 + 
-        dup 2 pick "_wordle/stats/current_streak" setprop
+        dup 2 pick "_wordle/stats/current_streak" addprop
         
         ( Update max streak if needed )
         over "_wordle/stats/max_streak" getprop
         over < if
-            over "_wordle/stats/max_streak" setprop
+            over "_wordle/stats/max_streak" addprop
         else
             pop
         then
         
-        ( Update guess distribution )
-        over "_wordle/stats/guess_distribution" getpropstr
-        dup not if
-            pop "0,0,0,0,0,0"
-        then
-        "," explode
-        
-        ( Increment the appropriate attempt bucket )
-        over 1 - array_getitem atoi 1 +
-        intostr over 2 pick 1 - array_setitem
-        
-        "," array_join
-        2 pick "_wordle/stats/guess_distribution" setpropstr
+        ( Update guess distribution using individual properties )
+        over intostr "_wordle/stats/guess" swap strcat
+        over over getprop 1 + rot rot addprop
         
     else
         ( Player lost - reset current streak )
-        0 over "_wordle/stats/current_streak" setprop
+        0 over "_wordle/stats/current_streak" addprop
+        pop
     then
     
-    pop pop
+    pop
 ;
 
 ( Get current game state )
@@ -255,25 +251,71 @@
     
     ( Show previous guesses if any )
     dup if
-        " " explode
-        0 begin
-            dup 5 pick array_count < while
-            dup 5 pick array_getitem
-            
-            ( Show the guess with color coding )
-            6 pick over check-guess
-            "  " swap strcat tell
-            
-            1 +
-        repeat
-        pop
+        " " explode  ( word attempts guesses complete str1 str2 ... strN N )
+        
+        ( Show each guess )
+        dup 0 > if
+            dup 1 = if
+                ( Only one guess )
+                6 pick over check-guess
+                "  " swap strcat tell
+                pop
+            else
+                dup 2 = if
+                    ( Two guesses )
+                    6 pick 1 pick check-guess "  " swap strcat tell
+                    6 pick 2 pick check-guess "  " swap strcat tell
+                    pop pop pop
+                else
+                    ( Three or more guesses )
+                    dup 3 >= if
+                        6 pick 2 pick check-guess "  " swap strcat tell
+                        6 pick 3 pick check-guess "  " swap strcat tell
+                        6 pick 4 pick check-guess "  " swap strcat tell
+                        
+                        dup 4 > if
+                            6 pick 5 pick check-guess "  " swap strcat tell
+                        then
+                        dup 5 > if
+                            6 pick 6 pick check-guess "  " swap strcat tell
+                        then
+                        dup 6 > if
+                            6 pick 7 pick check-guess "  " swap strcat tell
+                        then
+                        
+                        ( Clean up exploded strings )
+                        0 begin
+                            over over >
+                        while
+                            rot pop 1 +
+                        repeat
+                        pop pop
+                    then
+                then
+            then
+        else
+            pop
+        then
     then
     
     ( Show empty rows for remaining attempts )
-    dup array_count 6 < if
-        dup array_count 6 swap - 0 do
+    dup strlen 0 > if
+        " " explode
+        6 swap - 0 begin
+            over over >
+        while
             "  ⬜⬜⬜⬜⬜" tell
-        loop
+            1 +
+        repeat
+        pop pop
+    else
+        pop
+        "  ⬜⬜⬜⬜⬜" tell
+        "  ⬜⬜⬜⬜⬜" tell
+        "  ⬜⬜⬜⬜⬜" tell
+        "  ⬜⬜⬜⬜⬜" tell
+        "  ⬜⬜⬜⬜⬜" tell
+        "  ⬜⬜⬜⬜⬜" tell
     then
     
     "" tell
@@ -309,7 +351,7 @@
     
     ( Validate word )
     dup valid-word? not if
-        pop "❌ \"" over strcat "\" is not a valid word." strcat tell
+        pop "❌ Not a valid word." tell
         exit
     then
     
@@ -332,8 +374,6 @@
         exit
     then
     
-    ( target-word attempts guesses complete guess )
-    
     ( Add guess to guesses list )
     over if
         over " " strcat 4 pick strcat
@@ -342,38 +382,32 @@
     then
     
     ( Update guesses property )
-    4 pick "_wordle/guesses" setpropstr
+    4 pick "_wordle/guesses" addprop
     
     ( Increment attempts )
-    over 1 + 4 pick "_wordle/attempts" setprop
+    over 1 + 4 pick "_wordle/attempts" addprop
     
     ( Check if guess is correct )
     4 pick 3 pick strcmp not if
         ( Correct guess! )
-        1 4 pick "_wordle/complete" setprop
+        1 4 pick "_wordle/complete" addprop
         4 pick show-board
         
         ( Update statistics )
         4 pick 1 3 pick 1 + update-stats
         
         "" tell
-        "🎊 Share your result:" tell
-        4 pick generate-share-text tell
-        
+        "🎊 Great job!" tell
     else
         ( Incorrect guess )
         ( Check if max attempts reached )
         over 1 + 6 >= if
             ( Game over )
-            1 4 pick "_wordle/complete" setprop
+            1 4 pick "_wordle/complete" addprop
             4 pick show-board
             
-            ( Update statistics )  
+            ( Update statistics )
             4 pick 0 6 update-stats
-            
-            "" tell
-            "📊 Share your result:" tell
-            4 pick generate-share-text tell
         else
             ( Show updated board )
             4 pick show-board
@@ -384,41 +418,7 @@
     pop pop pop pop pop
 ;
 
-( Generate shareable result text )
-: generate-share-text ( player -- )
-    get-game-state pop  ( remove complete flag )
-    
-    ( guesses attempts target )
-    
-    "Wordle " systime 86400 / intostr strcat
-    
-    ( Add result )
-    over over strcmp not if
-        " " strcat over intostr strcat "/6" strcat
-    else
-        " X/6" strcat
-    then
-    
-    tell "" tell
-    
-    ( Show emoji grid )
-    dup if
-        " " explode
-        0 begin
-            dup 4 pick array_count < while
-            dup 4 pick array_getitem
-            4 pick over check-guess-emoji
-            tell
-            1 +
-        repeat
-        pop
-    then
-    
-    ( Clean up )
-    pop pop pop
-;
-
-( Show player statistics )
+( Show player statistics - simplified )
 : show-stats ( player -- )
     "" tell
     "📊 YOUR STATISTICS" tell
@@ -444,24 +444,19 @@
     "" tell "GUESS DISTRIBUTION" tell
     "─────────────────" tell
     
-    dup "_wordle/stats/guess_distribution" getpropstr
-    dup not if
-        pop "0,0,0,0,0,0"
-    then
-    "," explode
-    
+    ( Show distribution for each guess count )
     1 begin
         dup 6 <= while
-        over 2 pick 1 - array_getitem
+        over over intostr "_wordle/stats/guess" swap strcat getprop
         over intostr ":" strcat " " strcat 
         over 0 > if
-            over atoi 0 do "█" strcat loop
+            over 0 do "█" strcat loop
         then
-        " (" strcat 3 pick strcat ")" strcat
+        " (" strcat swap intostr strcat ")" strcat
         tell
         1 +
     repeat
-    pop pop
+    pop
     
     "" tell
     pop
@@ -524,16 +519,6 @@
     dup "stats" strcmp not if
         pop pop  
         me@ show-stats
-        exit
-    then
-    
-    dup "share" strcmp not if
-        pop pop
-        me@ played-today? if
-            me@ generate-share-text
-        else
-            "❌ You haven't played today's Wordle yet!" tell
-        then
         exit
     then
     
