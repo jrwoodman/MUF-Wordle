@@ -57,13 +57,13 @@
     dup
     
     ( Check if it's in the answer words )
-    get-answer-words " " explode_array
+    get-answer-words " " explode
     over array_findval -1 = not if
         pop pop 1 exit
     then
     
     ( Check if it's in the allowed guess words )
-    get-guess-words " " explode_array  
+    get-guess-words " " explode  
     swap array_findval -1 = not
 ;
 
@@ -71,7 +71,7 @@
 : get-todays-word ( -- str )
     ( Use system time to generate consistent daily word )
     systime 86400 /  ( days since epoch )
-    get-answer-words " " explode_array
+    get-answer-words " " explode
     dup array_count
     3 pick swap %  ( modulo to get consistent index )
     array_getitem
@@ -139,7 +139,7 @@
         dup not if
             pop "0,0,0,0,0,0"
         then
-        "," explode_array
+        "," explode
         
         ( Increment the appropriate attempt bucket )
         over 1 - array_getitem atoi 1 +
@@ -251,7 +251,7 @@
     
     ( Show previous guesses if any )
     dup if
-        " " explode_array
+        " " explode
         0 begin
             dup 5 pick array_count < while
             dup 5 pick array_getitem
@@ -399,7 +399,7 @@
     
     ( Show emoji grid )
     dup if
-        " " explode_array
+        " " explode
         0 begin
             dup 4 pick array_count < while
             dup 4 pick array_getitem
@@ -444,7 +444,7 @@
     dup not if
         pop "0,0,0,0,0,0"
     then
-    "," explode_array
+    "," explode
     
     1 begin
         dup 6 <= while
