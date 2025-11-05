@@ -52,7 +52,7 @@
 ( YELLOW_SQUARE = "🟨" )
 ( GRAY_SQUARE = "⬜" )
 
-( Check if a word is valid (in either answer list or guess list) )
+( Check if a word is valid in either answer list or guess list )
 : valid-word? ( str -- bool )
     dup
     
@@ -70,10 +70,10 @@
 ( Get today's word using a deterministic seed based on date )
 : get-todays-word ( -- str )
     ( Use system time to generate consistent daily word )
-    systime 86400 / ( Get days since epoch )
+    systime 86400 /  ( days since epoch )
     get-answer-words " " explode_array
     dup array_count
-    3 pick swap % ( Use modulo to get consistent index )
+    3 pick swap %  ( modulo to get consistent index )
     array_getitem
     swap pop
 ;
@@ -167,7 +167,7 @@
 ( Check guess against target and generate colored feedback )
 : check-guess ( target guess -- feedback )
     "" swap
-    0 ( position counter )
+    0  ( position counter )
     
     begin
         dup 5 < while
@@ -193,8 +193,8 @@
             then
         then
         
-        swap pop ( remove character )
-        1 + ( increment position )
+        swap pop  ( remove character )
+        1 +  ( increment position )
     repeat
     
     ( Clean up stack )
@@ -204,7 +204,7 @@
 ( Generate emoji feedback for sharing )
 : check-guess-emoji ( target guess -- emoji-str )
     "" swap
-    0 ( position counter )
+    0  ( position counter )
     
     begin
         dup 5 < while
@@ -230,8 +230,8 @@
             then
         then
         
-        swap pop ( remove character )
-        1 + ( increment position )
+        swap pop  ( remove character )
+        1 +  ( increment position )
     repeat
     
     ( Clean up stack )
@@ -382,7 +382,7 @@
 
 ( Generate shareable result text )
 : generate-share-text ( player -- )
-    get-game-state pop ( remove complete flag )
+    get-game-state pop  ( remove complete flag )
     
     ( guesses attempts target )
     
