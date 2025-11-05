@@ -113,7 +113,7 @@
 
 ( Check if player has played today )
 : played-today? ( player -- bool )
-    dup "_wordle/lastplay" getprop
+    dup "_wordle/lastplay" getpropval
     dup not if
         pop pop 0 exit
     then
@@ -125,18 +125,18 @@
 ( Update player statistics - simplified version )
 : update-stats ( player won? attempts -- )
     ( Increment games played )
-    over "_wordle/stats/played" getprop 1 + 2 pick "_wordle/stats/played" addprop
+    over "_wordle/stats/played" getpropval 1 + 2 pick "_wordle/stats/played" addprop
     
     swap if
         ( Player won )
-        dup "_wordle/stats/won" getprop 1 + over "_wordle/stats/won" addprop
+        dup "_wordle/stats/won" getpropval 1 + over "_wordle/stats/won" addprop
         
         ( Update current streak )
-        dup "_wordle/stats/current_streak" getprop 1 + 
+        dup "_wordle/stats/current_streak" getpropval 1 + 
         dup 2 pick "_wordle/stats/current_streak" addprop
         
         ( Update max streak if needed )
-        over "_wordle/stats/max_streak" getprop
+        over "_wordle/stats/max_streak" getpropval
         over < if
             over "_wordle/stats/max_streak" addprop
         else
@@ -145,7 +145,7 @@
         
         ( Update guess distribution using individual properties )
         over intostr "_wordle/stats/guess" swap strcat
-        over over getprop 1 + rot rot addprop
+        over over getpropval 1 + rot rot addprop
         
     else
         ( Player lost - reset current streak )
@@ -159,9 +159,9 @@
 ( Get current game state )
 : get-game-state ( player -- word attempts guesses complete )
     dup "_wordle/word" getpropstr
-    over "_wordle/attempts" getprop
+    over "_wordle/attempts" getpropval
     over "_wordle/guesses" getpropstr
-    swap "_wordle/complete" getprop
+    swap "_wordle/complete" getpropval
 ;
 
 ( Check guess against target and generate colored feedback )
@@ -424,10 +424,10 @@
     "📊 YOUR STATISTICS" tell
     "═══════════════════" tell
     
-    dup "_wordle/stats/played" getprop intostr 
+    dup "_wordle/stats/played" getpropval intostr 
     "Games Played: " swap strcat tell
     
-    dup "_wordle/stats/won" getprop over "_wordle/stats/played" getprop
+    dup "_wordle/stats/won" getpropval over "_wordle/stats/played" getpropval
     dup 0 = if
         pop pop "Win Rate: 0%"
     else
@@ -435,10 +435,10 @@
     then
     tell
     
-    dup "_wordle/stats/current_streak" getprop intostr
+    dup "_wordle/stats/current_streak" getpropval intostr
     "Current Streak: " swap strcat tell
     
-    dup "_wordle/stats/max_streak" getprop intostr
+    dup "_wordle/stats/max_streak" getpropval intostr
     "Max Streak: " swap strcat tell
     
     "" tell "GUESS DISTRIBUTION" tell
@@ -447,7 +447,7 @@
     ( Show distribution for each guess count )
     1 begin
         dup 6 <= while
-        over over intostr "_wordle/stats/guess" swap strcat getprop
+        over over intostr "_wordle/stats/guess" swap strcat getpropval
         over intostr ":" strcat " " strcat 
         over 0 > if
             over 0 do "█" strcat loop
