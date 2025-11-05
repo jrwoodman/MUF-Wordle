@@ -58,13 +58,13 @@
     
     ( Check if it's in the answer words )
     get-answer-words " " explode
-    over array_findval -1 = not if
+    over array_find -1 = not if
         pop pop 1 exit
     then
     
     ( Check if it's in the allowed guess words )
     get-guess-words " " explode  
-    swap array_findval -1 = not
+    swap array_find -1 = not
 ;
 
 ( Get today's word using a deterministic seed based on date )
